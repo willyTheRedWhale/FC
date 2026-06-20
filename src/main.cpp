@@ -1,4 +1,4 @@
-// Core 1
+// Core 0
 #include <Arduino.h>
 
 #include <Adafruit_MMC56x3.h>
@@ -76,7 +76,7 @@ void loop() {
     readSensorFusion(&data[0], &data[1], &data[2]);
     readloopRate(&data[3]);
 
-    float yaw_display = 360.0f - data[2];
+    float yaw_display = 360.0f - data[2] - 0;
     if (yaw_display >= 360.0f) yaw_display -= 360.0f;
     //Serial.printf(">Roll:%.2f \n>Pitch:%.2f \n>Yaw:%.2f \n>HZ:%.2f\n", data[0], data[1], data[2], data[3]);
     Serial.print(">Roll:"); Serial.println(data[0]);
@@ -93,6 +93,7 @@ void loop() {
     //Serial.println("\n====== SUCCESS: Core 1 Interrupted by Core 0! ======");
   }
 }
+
 void displayInfo() {
 
   Serial.print(F("Location: ")); 

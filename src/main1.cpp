@@ -1,4 +1,4 @@
-//Core 0
+//Core 1
 
 
 #include <Arduino.h>
@@ -99,9 +99,9 @@ void loop1() {
     deltat = fusion.deltatUpdate();
     uint8_t current_mag_index = *(volatile uint8_t*)&magnometerDataCurrent;
     readMagnometer(&mx, &my, &mz);
-    float final_mx = -mx / 100.0f; 
-    float final_my = -my / 100.0f;
-    float final_mz = mz / 100.0f; 
+    float final_mx =  my / 100.0f;   // no negation
+    float final_my = -mx / 100.0f;   // negated
+    float final_mz =  mz / 100.0f;
     fusion.MadgwickUpdate(gx_rads, gy_rads, gz_rads, ax_g, ay_g, az_g, final_mx, final_my, final_mz, deltat);
 
     writeSensorFusion(fusion.getRoll(), fusion.getPitch(), fusion.getYaw());
