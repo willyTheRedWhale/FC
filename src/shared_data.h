@@ -71,7 +71,6 @@ void writeMagnometer(float new_x_value, float new_y_value, float new_z_value);
 void writeSensorFusion(float new_roll, float new_pitch, float new_yaw);
 void writeLoopRate(float hz_variable);
 
-
 void readMagnometer(float* x_variable, float* y_variable, float* z_variable);
 void readSensorFusion(float* roll_variable, float* pitch_variable, float* yaw_variable);
 void readloopRate(float* hz_variable);

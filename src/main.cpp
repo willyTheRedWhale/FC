@@ -17,8 +17,15 @@
 
 #include <malloc.h>
 #include <stdio.h>
+#include "pico/time.h"
 
-constexpr float looprateMAG = 1000.0f / MAGOUTPUTRATE;
+constexpr float looprateMAG = 1.0f / MAGOUTPUTRATE * 1000000.0f;
+constexpr float looprateSerialOutput = 1.0f / SERIALOUTRATE * 1000000.0f;
+
+volatile bool ISRMagnetometerValue = false;
+volatile bool ISRSerialOutputValue = false;
+repeating_timer_t Magnetometertimer;
+repeating_timer_t SerialOutputtimer;
 
 Adafruit_MMC5603 mmc = Adafruit_MMC5603(12345);
 TinyGPSPlus gps;
@@ -28,6 +35,8 @@ unsigned long magread = 0;
 float data[4];
 
 void displayInfo();
+bool ISRMagnetometer(repeating_timer_t* rt);
+bool ISRSerialOutput(repeating_timer* rt);
 
 void setup() {
   setupLED();
@@ -54,6 +63,8 @@ void setup() {
   Serial.print(F("Mag:   ")); Serial.println(readComponentStatus(MAGID) ? F("Active") : F("Inactive"));
   Serial.println(F("=========================================="));
   delay(1000);
+  add_repeating_timer_us(-looprateMAG, ISRMagnetometer, nullptr, &Magnetometertimer);
+  add_repeating_timer_us(-looprateSerialOutput, ISRSerialOutput, nullptr, &SerialOutputtimer);
 }
 sensors_event_t event;
 void loop() {
@@ -61,17 +72,17 @@ void loop() {
     gps.encode(Serial1.read());
   } 
   
-  if (millis() - magread > looprateMAG) {
+  if (ISRMagnetometerValue) {
     
     mmc.getEvent(&event);
     event.magnetic.x -= calibrationValuesData.mag_bias_x;
     event.magnetic.y -= calibrationValuesData.mag_bias_y;
     event.magnetic.z -= calibrationValuesData.mag_bias_z;
     writeMagnometer(event.magnetic.x, event.magnetic.y, event.magnetic.z);
-    magread = millis();
+    ISRMagnetometerValue = false;
 
   }
-  if (millis() - output > 100 ) {
+  if (ISRSerialOutputValue) {
 
     readSensorFusion(&data[0], &data[1], &data[2]);
     readloopRate(&data[3]);
@@ -85,7 +96,7 @@ void loop() {
     Serial.print(">Hz:"); Serial.println(data[3]);
     //Serial.printf("Mag X: %.5f Y: %.5f Z: %.5f uT\n", event.magnetic.x / 1000.0f, event.magnetic.y / 1000.0f, event.magnetic.z / 1000.0f);
     //displayInfo();
-    output = millis();
+    ISRSerialOutputValue = false;
   }
 
   if (rp2040.fifo.available() > 0) {
@@ -134,4 +145,12 @@ void displayInfo() {
     Serial.print(F("INVALID"));
   }
   Serial.print(F("\n"));
+}
+bool ISRMagnetometer(repeating_timer_t* rt) {
+  ISRMagnetometerValue = true;
+  return true;
+}
+bool ISRSerialOutput(repeating_timer* rt) {
+  ISRSerialOutputValue = true;
+  return true;
 }
