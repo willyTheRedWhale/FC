@@ -20,14 +20,17 @@
 #include "pico/time.h"
 
 constexpr float looprateMAG = 1.0f / MAGOUTPUTRATE * 1000000.0f;
-constexpr float looprateSerialOutput = 1.0f / SERIALOUTRATE * 1000000.0f;
-
 volatile bool ISRMagnetometerValue = false;
-volatile bool ISRSerialOutputValue = false;
 repeating_timer_t Magnetometertimer;
+
+#if DEBUG
+constexpr float looprateSerialOutput = 1.0f / SERIALOUTRATE * 1000000.0f;
+volatile bool ISRSerialOutputValue = false;
 repeating_timer_t SerialOutputtimer;
+#endif
 
 Adafruit_MMC5603 mmc = Adafruit_MMC5603(12345);
+sensors_event_t event;
 TinyGPSPlus gps;
 
 unsigned long output = 0;
@@ -36,16 +39,19 @@ float data[4];
 
 void displayInfo();
 bool ISRMagnetometer(repeating_timer_t* rt);
-bool ISRSerialOutput(repeating_timer* rt);
+
+#if DEBUG
+bool ISRSerialOutput(repeating_timer_t* rt);
+#endif
 
 void setup() {
   setupLED();
+#if DEBUG
   Serial.begin(BaudRate); 
-  
+#endif
   setupGPS(&Serial1);
   beginGPS(&Serial1);
   
-  showStatusLED(1);
   showStatusLED(1);
   setupI2CPins(&Wire1);
   beginWire(&Wire1);
@@ -55,18 +61,21 @@ void setup() {
   calibrateMagnetometer();
   setComponentStatus(true, MAGID);
   setComponentStatus(true, GPSID);
-
+#if DEBUG
   Serial.println("============== Components: ==============");
   Serial.print(F("NRF24: ")); Serial.println(readComponentStatus(NRF24ID) ? F("Active") : F("Inactive"));
   Serial.print(F("LSM6:  ")); Serial.println(readComponentStatus(LSM6ID) ? F("Active") : F("Inactive"));
   Serial.print(F("GPS:   ")); Serial.println(readComponentStatus(GPSID) ? F("Active") : F("Inactive"));
   Serial.print(F("Mag:   ")); Serial.println(readComponentStatus(MAGID) ? F("Active") : F("Inactive"));
   Serial.println(F("=========================================="));
+#endif
   delay(1000);
   add_repeating_timer_us(-looprateMAG, ISRMagnetometer, nullptr, &Magnetometertimer);
+#if DEBUG
   add_repeating_timer_us(-looprateSerialOutput, ISRSerialOutput, nullptr, &SerialOutputtimer);
+#endif
 }
-sensors_event_t event;
+
 void loop() {
   while (Serial1.available() > 0) {
     gps.encode(Serial1.read());
@@ -82,6 +91,7 @@ void loop() {
     ISRMagnetometerValue = false;
 
   }
+#if DEBUG
   if (ISRSerialOutputValue) {
 
     readSensorFusion(&data[0], &data[1], &data[2]);
@@ -98,6 +108,7 @@ void loop() {
     //displayInfo();
     ISRSerialOutputValue = false;
   }
+#endif
 
   if (rp2040.fifo.available() > 0) {
     rp2040.fifo.pop(); 
@@ -105,6 +116,7 @@ void loop() {
   }
 }
 
+#if DEBUG
 void displayInfo() {
 
   Serial.print(F("Location: ")); 
@@ -146,11 +158,16 @@ void displayInfo() {
   }
   Serial.print(F("\n"));
 }
+#endif
+
 bool ISRMagnetometer(repeating_timer_t* rt) {
   ISRMagnetometerValue = true;
   return true;
 }
-bool ISRSerialOutput(repeating_timer* rt) {
+
+#if DEBUG
+bool ISRSerialOutput(repeating_timer_t* rt) {
   ISRSerialOutputValue = true;
   return true;
 }
+#endif
