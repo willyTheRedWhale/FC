@@ -12,6 +12,7 @@
 #include <RFSlave.hpp>
 #include <shared.h>
 #include <shared_data.h>
+#include <doorbell_manager.h>
 
 RF24      radio(NRF24_CE_PIN, NRF24_CSN_PIN);
 RFSlave   slave(radio);
@@ -22,9 +23,17 @@ SF fusion;
 int32_t acceleration[3];
 int32_t rotation[3];
 
+extern uint doorbell_nrf24_recieved_ready;
+uint doorbell_nrf24_package_ready;
+
+void core1_doorbell_isr();
 
 void setup1() {
-  
+  multicore_doorbell_claim(DOORBELL_CORE1_RECEIVES, 0b10);
+  doorbell_nrf24_package_ready = DOORBELL_CORE1_RECEIVES;
+  uint irq = multicore_doorbell_irq_num(doorbell_nrf24_package_ready);
+  irq_add_shared_handler(irq, core1_doorbell_isr, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
+  irq_set_enabled(irq, true);
   setupSPIPins(&SPI1);
   beginSPI(&SPI1);
 
@@ -57,6 +66,9 @@ void setup1() {
   setComponentStatus(lsm6_status ,LSM6ID);
   lsm6dsoxSensor.Get_X_Axes(acceleration);
   lsm6dsoxSensor.Get_G_Axes(rotation);
+  irq_set_enabled(irq, true);
+  delay(2000);
+  Serial.print("Core 1 doorbell: "); Serial.println(doorbell_nrf24_package_ready);
 }
 
 
@@ -110,5 +122,19 @@ void loop1() {
   if (millis() - lastInterruptTrigger > 1000) {
     rp2040.fifo.push_nb(1); 
     lastInterruptTrigger = millis();
+    multicore_doorbell_set_other_core(doorbell_nrf24_recieved_ready);
+  }
+}
+
+
+void core1_doorbell_isr() {
+  if (multicore_doorbell_is_set_current_core(doorbell_nrf24_package_ready)) {
+    multicore_doorbell_clear_current_core(doorbell_nrf24_package_ready);
+
+    // Safe to read — Core 1 finished writing before ringing
+
+    Serial.println("Core 1 got interrupted by Core 0");
+    // Do whatever you need with x, y, z
+    // Keep this short — you're in an ISR
   }
 }
