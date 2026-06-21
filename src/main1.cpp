@@ -29,8 +29,9 @@ void setup1() {
   beginSPI(&SPI1);
 
   radio.setStatusFlags(RF24_RX_DR);
-
+#if DEBUG
   //Serial.println("Initializing RFSlave...");
+#endif
   Connection conn;
   uint8_t addr[5] = { 'R', 'F', 'T', 'E', 'S' };
   conn.setDataRate(RF24_250KBPS);
@@ -43,12 +44,12 @@ void setup1() {
   ConfirmationPacket* confirm = new ConfirmationPacket(1);
   slave.queueAckPacket(confirm);
   setComponentStatus(radio.isChipConnected(), NRF24ID);
-  
+#if DEBUG
   /*Serial.println(radio.isChipConnected()
       ? "RF24 detected and connected!"
       : "RF24 not detected or not connected!");*/
   //radio.printPrettyDetails();
-
+#endif
   lsm6dsoxSensor.begin();
 
   bool lsm6_status = checkLSM6(&lsm6dsoxSensor);
